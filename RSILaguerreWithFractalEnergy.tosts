@@ -1,0 +1,174 @@
+##################################################################################
+##
+##  RSILaguerreWithFractalEnergy study coded for TheoTrade https://theotrade.com/ in 
+##  ThinkorSwim ThinkScript
+##
+##  For use with Thinkorswim trading platform by TD Ameritrade (now Charles Schwab)
+##
+##  This study is a technical analysis tool modified from the popular RSI 
+##  (relative strength indicator) momemtum tool. The aim is to reduce lag, noise, false 
+##  signals, and to be more responsive.
+##
+##  Both Fractal Energy and RSI are plotted. RSI in cyan and FE in yellow. Look for 
+##  trend exhaustion in the FE and a reversal of RSI or Price compression in FE and 
+##  an RSI reversal.
+##
+##  The Laguerre RSI uses a clever mathematical technique to improve both the 
+##  responsiveness and reliability of the regular RSI. Like the regular RSI, it is 
+##  great at detecting overbought/oversold conditions and can be used as a pullback 
+##  filter for trend following strategies.
+##
+##  The Laguerre RSI is similar to a 4-period regular RSI, except that a Laguerre 
+##  transform has been applied for price smoothing. The Laguerre transform is a 
+##  mathematical technique that allows smooth indicators to be built using small 
+##  amounts of data. This smoothing minimizes the choppiness that a regular 4-period 
+##  RSI would otherwise have.
+##
+##  The Laguerre RSI is much smoother, but still does a good job at capturing the bigger 
+##  price moves. Also notice that it varies from 0 to 1, unlike 0 to 100 for the regular RSI.
+##  In this way, the Laguerre transform gives you a fast-reacting RSI without sacrificing 
+##  reliability. There is only one input parameter: gamma. The gamma is a damping factor that 
+##  determines the amount of price smoothing. The larger the gamma, the smoother 
+##  (but more laggy) the Laguerre RSI becomes.
+##
+##  The fractal energy study gives the linearity of the current trend of the underlying.
+##  Markets are either moving between states of "Range Expansion" (trend) or
+##  "Range Contraction" (consolidation)
+##
+##  A very high value on the Fractal Energy study means that the chart is currently 
+##  trendless, and about to trend. Conversely, a very low value of the fractal energy
+##  study shows that the price has been trending very hard on that chart, and is likely
+##  to move into consolidtion. Range expansion leads to range contraction, which once 
+##  again leads to range expansion. 
+##
+##  The fractal energy study gives us the context of the current price action. The 
+##  study identifies when the price action is trending and "exhausted" and likely to
+##  fade - or - if it is "wound up" like a spring after consolidating and ready 
+##  to trend again.
+##
+##  A free tutorial on using this indicator was made by TheoTrade's Doc Severson
+##  and can be found here:
+##		https://www.youtube.com/watch?v=xN4XGN2KBFU&t=1327s
+## 
+##  Basic Construction
+##  	* Similar to a 4 period RSI + Laguerre transform
+##  	* Smoothing = less choppiness
+##  	* Ranges between 0 and 1
+##  	* Inputs: Gamma - variable that allows you to change the smoothing factor 
+##  	* Larger Gamma = smoother & vice versa
+##		* Works for all timeframes and markets 
+##		* Works with candlestick charts and Heikin Ashi
+##
+##	Trading the indicator: The basic rules:
+##		1) BUY if the indicator crosses up through 0.2
+##		2) SELL if the indicator crosses down through 0.8
+##
+##	EXIT:
+##		* On opposite signal
+##		* Predetermined price move/ risk & return ratio
+##		* Using another indicator
+##
+##	TIPS:
+##		* Trading using only this indicator will have inconsistent results. Try adding 
+##		  further indicators to improve odds of success. This indicator alone should
+##		  be used to give a trading window, and NOT be the sole indicator for executing
+##		  trades.
+##		* Using moving averages can be helpful for signaling long/shorts (IE: If price
+##		  if above the 200 day simple moving average go long the underlying, and if
+##		  price is below the 200 day simple moving average short the underlying)
+##		* Mix with indicators based on different inputs that can confirm the RSI Laguerre
+##		  signal (IE: Volume, Tick, Advance/Decline, DMI)
+##		* Check if the gamma input is appropriate to the market
+##
+##  The math for anyone interested: https://www.mesasoftware.com/papers/TimeWarp.pdf
+##
+##################################################################################
+
+declare lower;
+
+#Inputs: 
+input nFE = 13;#hint nFE: length for Fractal Energy calculation. 
+
+# Variables:
+def o;
+def h;
+def l;
+def c;
+def CU1;
+def CU2;
+def CU;
+def CD1;
+def CD2;
+def CD;
+def L0;
+def L1;
+def L2;
+def L3;
+plot RSI;
+plot OS;
+plot OB;
+
+# Calculations
+o = (open + close[1]) / 2;
+h = Max(high, close[1]);
+l = Min(low, close[1]);
+c = (o + h + l + close) / 4;
+plot gamma = Log(Sum((Max(high, close[1]) - Min(low, close[1])), nFE) / 
+        (Highest(high, nFE) - Lowest(low, nFE)))
+            / Log(nFE);
+gamma.SetDefaultColor(Color.Yellow);
+L0 = (1 – gamma) * c + gamma * L0[1];
+L1 = -gamma * L0 + L0[1] + gamma * L1[1];
+L2 = -gamma * L1 + L1[1] + gamma * L2[1];
+L3 = -gamma * L2 + L2[1] + gamma * L3[1];
+if L0 >= L1
+then {
+    CU1 = L0 - L1;
+    CD1 = 0;
+} else {
+    CD1 = L1 - L0;
+    CU1 = 0;
+}
+if L1 >= L2
+then {
+    CU2 = CU1 + L1 - L2;
+    CD2 = CD1;
+} else {
+    CD2 = CD1 + L2 - L1;
+    CU2 = CU1;
+}
+if L2 >= L3
+then {
+    CU = CU2 + L2 - L3;
+    CD = CD2;
+} else {
+    CU = CU2;
+    CD = CD2 + L3 - L2;
+}
+
+RSI = if CU + CD <> 0 then CU / (CU + CD) else 0;
+RSI.SetDefaultColor(Color.Cyan);
+OS = if IsNaN(close) then Double.NaN else 0.2;
+OS.SetDefaultColor(Color.Gray);
+OS.HideBubble();
+OS.HideTitle();
+OB = if IsNaN(close) then Double.NaN else 0.8;
+OB.SetDefaultColor(Color.Gray);
+OB.HideBubble();
+OB.HideTitle();
+plot FEh = if isNaN(close) then double.nan else .618;
+FEh.SetStyle(Curve.Long_Dash);
+FEh.HideBubble();
+FEh.SetDefaultColor(Color.Dark_Gray);
+FEh.HideTitle();
+plot FEl = if isNaN(close) then double.nan else .382;
+FEl.SetStyle(Curve.Long_Dash);
+FEl.SetDefaultColor(Color.Dark_Gray);
+FEl.HideBubble();
+FEl.HideTitle();
+AddCloud(0, OS, Color.Green, Color.Green);
+AddCloud(OB, 1, Color.Red, Color.Red);
+Alert(RSI crosses below .9, "", Alert.BAR, Sound.Bell);
+Alert(RSI crosses above .1, "", Alert.BAR, Sound.Bell);
+
+# End Code RSI_Laguerre Self Adjusting with Fractal Energy
