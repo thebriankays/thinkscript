@@ -87,7 +87,7 @@
 declare lower;
 
 #Inputs: 
-input nFE = 13;#hint nFE: length for Fractal Energy calculation. 
+input nFE = 13; #hint nFE: length for Fractal Energy calculation. 
 
 # Variables:
 def o;

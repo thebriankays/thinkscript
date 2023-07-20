@@ -144,7 +144,3 @@ AddLabel( breach_notify, Concat( breaches, Concat( " breaches in ", Concat( tota
 def show_lines = show_weeks == show_weeks.SHOW_WKS or show_weeks == show_weeks.NUM_WKS;
 def show_labels = show_weeks == show_weeks.NUM_WKS;
 AddVerticalLine( first_DOW && show_lines, if show_labels && total_wks > total_wks[1] then Concat( "WK - ", total_wks ) else "", Color.LIGHT_GRAY, Curve.SHORT_DASH );
-
-## Debug Stuff.
-##AddChartBubble( yes, high, iv, Color.LIGHT_GREEN, yes );
-##AddChartBubble( yes, high, exp_mv, Color.LIGHT_RED, yes );
